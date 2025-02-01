@@ -66,9 +66,10 @@ void merge_sort(int *arr, const int len)
         merge_sort(arr, left_len);
         merge_sort(arr + left_len, right_len);
     }
-
-    memcpy(arr, merge(arr, left_len, arr + left_len, right_len),
-           len * sizeof(int));
+    
+    int *merged = merge(arr, left_len, arr + left_len, right_len);
+    memcpy(arr, merged, len * sizeof(int));
+    free(merged);
 }
 
 typedef struct
