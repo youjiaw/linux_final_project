@@ -6,33 +6,30 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-static int *merge(const int *left_half,
+static void merge(int *arr, 
                   const int left_len,
-                  const int *right_half,
-                  const int right_len)
+                  const int right_len) 
 {
-    int *merged = calloc(left_len + right_len, sizeof(int));
+    int *left_copy = calloc(left_len, sizeof(int));
+    memcpy(left_copy, arr, left_len * sizeof(int));
     int left_idx = 0, right_idx = 0, cur_idx = 0;
-
+    
     while (left_idx < left_len && right_idx < right_len)
     {
-        if (left_half[left_idx] <= right_half[right_idx])
+        if (left_copy[left_idx] <= arr[left_len + right_idx])
         {
-            merged[cur_idx++] = left_half[left_idx++];
+            arr[cur_idx++] = left_copy[left_idx++];
         }
         else
         {
-            merged[cur_idx++] = right_half[right_idx++];
+            arr[cur_idx++] = arr[left_len + right_idx++];
         }
     }
-
+    
     while (left_idx < left_len)
-        merged[cur_idx++] = left_half[left_idx++];
-
-    while (right_idx < right_len)
-        merged[cur_idx++] = right_half[right_idx++];
-
-    return merged;
+        arr[cur_idx++] = left_copy[left_idx++];
+    
+    free(left_copy);
 }
 
 static int fork_count = 0;
@@ -67,9 +64,7 @@ void merge_sort(int *arr, const int len)
         merge_sort(arr + left_len, right_len);
     }
     
-    int *merged = merge(arr, left_len, arr + left_len, right_len);
-    memcpy(arr, merged, len * sizeof(int));
-    free(merged);
+    merge(arr, left_len, right_len);
 }
 
 typedef struct
