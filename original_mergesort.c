@@ -14,14 +14,10 @@ static int *merge(const int *left_half,
     int *merged = calloc(left_len + right_len, sizeof(int));
     int left_idx = 0, right_idx = 0, cur_idx = 0;
 
-    while (left_idx < left_len && right_idx < right_len)
-    {
-        if (left_half[left_idx] <= right_half[right_idx])
-        {
+    while (left_idx < left_len && right_idx < right_len) {
+        if (left_half[left_idx] <= right_half[right_idx]) {
             merged[cur_idx++] = left_half[left_idx++];
-        }
-        else
-        {
+        } else {
             merged[cur_idx++] = right_half[right_idx++];
         }
     }
@@ -47,12 +43,10 @@ void merge_sort(int *arr, const int len)
     const int right_len = mid;
 
     /* If forked too often, it gets way too slow. */
-    if (fork_count < 5)
-    {
+    if (fork_count < 5) {
         pid_t pid = fork();
         fork_count++;
-        if (pid == 0)
-        { /* Child process */
+        if (pid == 0) { /* Child process */
             merge_sort(arr, left_len);
             exit(0);
         }
@@ -60,9 +54,7 @@ void merge_sort(int *arr, const int len)
         /* Parent process */
         merge_sort(arr + left_len, right_len);
         waitpid(pid, NULL, 0);
-    }
-    else
-    {
+    } else {
         merge_sort(arr, left_len);
         merge_sort(arr + left_len, right_len);
     }
@@ -71,8 +63,7 @@ void merge_sort(int *arr, const int len)
            len * sizeof(int));
 }
 
-typedef struct
-{
+typedef struct {
     uint32_t a, b, c, d;
 } rand_context_t;
 
@@ -92,7 +83,7 @@ void rand_init(rand_context_t *x, uint32_t seed)
 {
     x->a = 0xf1ea5eed, x->b = x->c = x->d = seed;
     for (size_t i = 0; i < 20; ++i)
-        (void)rand_next(x);
+        (void) rand_next(x);
 }
 
 int iabs(int n)
@@ -106,21 +97,19 @@ int iabs(int n)
 int main(int argc, char **argv)
 {
     rand_context_t r;
-    rand_init(&r, (uintptr_t)&main ^ getpid());
+    rand_init(&r, (uintptr_t) &main ^ getpid());
 
     /* shared by forked processes */
     int *arr = mmap(NULL, N_ITEMS * sizeof(int), PROT_READ | PROT_WRITE,
                     MAP_SHARED | MAP_ANONYMOUS, 0, 0);
 
     for (int i = 0; i < N_ITEMS; ++i)
-        arr[i] = iabs((int)rand_next(&r));
+        arr[i] = iabs((int) rand_next(&r));
 
     merge_sort(arr, N_ITEMS);
 
-    for (int i = 1; i < N_ITEMS; ++i)
-    {
-        if (arr[i] < arr[i - 1])
-        {
+    for (int i = 1; i < N_ITEMS; ++i) {
+        if (arr[i] < arr[i - 1]) {
             fprintf(stderr, "Ascending order is expected.\n");
             exit(1);
         }
