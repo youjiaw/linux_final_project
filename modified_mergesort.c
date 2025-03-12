@@ -1,3 +1,4 @@
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,35 +27,84 @@ static void merge(int *arr, const int left_len, const int right_len)
     free(left_copy);
 }
 
-static int fork_count = 0;
+#define MAX_THREADS 32
+#define MAX_SEGMENTS 20
 
-void merge_sort(int *arr, const int len)
+void merge_sort_part(int *arr, const int len)
 {
     if (len == 1)
         return;
 
-    const int mid = len / 2;
-    const int left_len = len - mid;
-    const int right_len = mid;
+    int pending[MAX_SEGMENTS];
+    int pending_count = 0, total_length = 0;
 
-    /* If forked too often, it gets way too slow. */
-    if (fork_count < 5) {
-        pid_t pid = fork();
-        fork_count++;
-        if (pid == 0) { /* Child process */
-            merge_sort(arr, left_len);
-            exit(0);
+    int init_size = 1;
+    for (int i = 0; i < len; i += init_size) {
+        // adding an item
+        pending[pending_count++] = init_size;
+        total_length += init_size;
+
+        // keep merging segments with the same length
+        while (pending_count >= 2 &&
+               pending[pending_count - 1] == pending[pending_count - 2]) {
+            int merge_length = pending[pending_count - 1];
+            int left_start = total_length - 2 * merge_length;
+
+            merge(arr + left_start, merge_length, merge_length);
+
+            // update the length of the last segment
+            pending_count -= 1;
+            pending[pending_count - 1] = 2 * merge_length;
         }
-
-        /* Parent process */
-        merge_sort(arr + left_len, right_len);
-        waitpid(pid, NULL, 0);
-    } else {
-        merge_sort(arr, left_len);
-        merge_sort(arr + left_len, right_len);
     }
 
-    merge(arr, left_len, right_len);
+    // merge the remaining segments
+    while (pending_count > 1) {
+        int right_length = pending[pending_count - 1];
+        int left_length = pending[pending_count - 2];
+        int left_start = total_length - right_length - left_length;
+
+        merge(arr + left_start, left_length, right_length);
+
+        pending_count -= 1;
+        pending[pending_count - 1] = left_length + right_length;
+    }
+}
+
+typedef struct {
+    int *arr;
+    int len;
+} merge_args_t;
+
+static void *merge_thread(void *args)
+{
+    merge_args_t *m_args = (merge_args_t *) args;
+    merge_sort_part(m_args->arr, m_args->len);
+    return NULL;
+}
+
+void merge_sort(int *arr, const int len)
+{
+    pthread_t threads[MAX_THREADS];
+    merge_args_t args[MAX_THREADS];
+
+    int arr_len = len / MAX_THREADS,
+        final_len = len - arr_len * (MAX_THREADS - 1);
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (i == MAX_THREADS - 1)
+            arr_len = final_len;
+
+        args[i] = (merge_args_t){arr + i * arr_len, arr_len};
+        pthread_create(&threads[i], NULL, merge_thread, &args[i]);
+    }
+
+    for (int i = 0; i < MAX_THREADS; i++)
+        pthread_join(threads[i], NULL);
+
+    // merge the sorted parts from 'right to left'
+    // because in merge function, the left part is copied to a new array
+    for (int i = MAX_THREADS - 1; i > 0; i--)
+        merge(arr + (i - 1) * arr_len, arr_len, len - i * arr_len);
 }
 
 typedef struct {
